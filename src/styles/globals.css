@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400;1,9..40,500&family=DM+Serif+Display:ital@0;1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* Warm Transparent Theme — human, minimal, refined */
+    --background: 35 20% 97%;
+    --foreground: 220 18% 14%;
+    --card: 35 15% 99%;
+    --card-foreground: 220 18% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 18% 14%;
+    --primary: 220 18% 22%;
+    --primary-foreground: 35 20% 97%;
+    --secondary: 35 12% 92%;
+    --secondary-foreground: 220 18% 20%;
+    --muted: 35 12% 94%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 220 14% 90%;
+    --accent-foreground: 220 18% 14%;
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 35 12% 88%;
+    --input: 35 12% 88%;
+    --ring: 220 18% 22%;
+    --chart-1: 220 18% 22%;
+    --chart-2: 220 18% 14%;
+    --chart-3: 220 10% 50%;
+    --chart-4: 0 65% 50%;
+    --chart-5: 145 55% 40%;
+    --sidebar: 35 15% 99%;
+    --sidebar-foreground: 220 18% 14%;
+    --sidebar-primary: 220 18% 22%;
+    --sidebar-primary-foreground: 35 20% 97%;
+    --sidebar-accent: 35 12% 92%;
+    --sidebar-accent-foreground: 220 18% 14%;
+    --sidebar-border: 35 12% 86%;
+    --sidebar-ring: 220 18% 22%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "ss01" on, "ss02" on, "cv01" on, "cv02" on;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
+
+@layer components {
+  .container-main {
+    @apply mx-auto px-4 md:px-6 lg:px-8 max-w-7xl w-full;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200;
+  }
+
+  .card-hover:hover {
+    @apply -translate-y-[1px];
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .bg-subtle {
+    background-color: hsl(var(--muted) / 0.5);
+  }
+
+  .border-subtle {
+    border-color: hsl(var(--border) / 0.6);
+  }
+}
