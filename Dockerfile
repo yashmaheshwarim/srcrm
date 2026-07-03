@@ -22,6 +22,10 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy source code and config files
 COPY . .
 
+# Ensure all directories that will be needed in the runner stage exist,
+# even if they were empty (kaniko/Docker doesn't preserve empty directories)
+RUN mkdir -p public .next src/styles
+
 # Build Next.js app
 RUN npm run build:next
 
@@ -41,6 +45,9 @@ RUN addgroup --system --gid 1001 nodejs \
 
 # Set NODE_ENV to production
 ENV NODE_ENV=production
+
+# Ensure target directories exist before copying (defensive)
+RUN mkdir -p ./public ./.next ./src/styles ./node_modules
 
 # Copy public assets (static files that don't require a build step)
 COPY --from=builder /app/public ./public
