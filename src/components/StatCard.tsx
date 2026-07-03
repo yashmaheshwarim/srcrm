@@ -12,10 +12,10 @@ interface StatCardProps {
 
 export function StatCard({ title, value, icon: Icon, subtitle, variant = "default" }: StatCardProps) {
   const variantStyles = {
-    default: "bg-card",
-    success: "bg-emerald-50 border-emerald-200",
-    warning: "bg-amber-50 border-amber-200",
-    danger: "bg-red-50 border-red-200",
+    default: "",
+    success: "border-emerald-200/60",
+    warning: "border-amber-200/60",
+    danger: "border-red-200/60",
   };
 
   const iconStyles = {
@@ -26,7 +26,7 @@ export function StatCard({ title, value, icon: Icon, subtitle, variant = "defaul
   };
 
   return (
-    <Card className={cn("border", variantStyles[variant])}>
+    <Card className={cn(variantStyles[variant])}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="space-y-1">

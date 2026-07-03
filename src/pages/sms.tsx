@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,17 +24,9 @@ import {
   History,
 } from "lucide-react";
 import { dataService } from "@/lib/data-service";
+import type { SentSMS } from "@/lib/data-service";
+import type { Lead, Customer } from "@/types";
 import { toast } from "@/hooks/use-toast";
-
-interface SentSMS {
-  id: string;
-  to: string;
-  toName: string;
-  message: string;
-  sentAt: string;
-  sentBy: string;
-  status: "sent" | "failed" | "delivered";
-}
 
 type SendTarget = "single" | "all-leads" | "all-customers";
 
@@ -45,16 +37,21 @@ export default function SMSPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const [sentMessages, setSentMessages] = useState<SentSMS[]>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("sr_sms_history");
-      return stored ? JSON.parse(stored) : [];
-    }
-    return [];
-  });
+  const [sentMessages, setSentMessages] = useState<SentSMS[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
-  const leads = useMemo(() => dataService.getLeads(), []);
-  const customers = useMemo(() => dataService.getCustomers(), []);
+  useEffect(() => {
+    Promise.all([
+      dataService.getSMSMessages(),
+      dataService.getLeads(),
+      dataService.getCustomers(),
+    ]).then(([sms, l, c]) => {
+      setSentMessages(sms);
+      setLeads(l);
+      setCustomers(c);
+    });
+  }, []);
 
   const handleSend = async () => {
     if (sendTarget === "single" && !phoneNumber.trim()) {
@@ -122,9 +119,16 @@ export default function SMSPage() {
       status: "sent" as const,
     }));
 
-    const updated = [...smsRecords, ...sentMessages];
-    setSentMessages(updated);
-    localStorage.setItem("sr_sms_history", JSON.stringify(updated));
+    await Promise.all(smsRecords.map((sms) =>
+      dataService.addSMSMessage({
+        to: sms.to,
+        toName: sms.toName,
+        message: sms.message,
+        sentAt: sms.sentAt,
+        sentBy: sms.sentBy,
+        status: sms.status,
+      })
+    ));
 
     setSending(false);
     setPhoneNumber("");

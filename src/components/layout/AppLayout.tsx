@@ -21,23 +21,31 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
-    { href: "/leads", label: "Leads", icon: "👤" },
-    { href: "/customers", label: "Customers", icon: "👥" },
-    { href: "/applications", label: "Applications", icon: "📋" },
-    { href: "/follow-ups", label: "Follow-ups", icon: "📞" },
+    ...(isAdmin || user?.role === "jobber"
+      ? [
+          { href: "/leads", label: "Leads", icon: "👤" },
+          { href: "/customers", label: "Customers", icon: "👥" },
+          { href: "/applications", label: "Applications", icon: "📋" },
+          { href: "/follow-ups", label: "Follow-ups", icon: "📞" },
+        ]
+      : []),
     { href: "/banks", label: "Banks", icon: "🏦" },
     ...(isAdmin ? [{ href: "/jobbers", label: "Jobbers", icon: "🔧" }] : []),
+    ...(isAdmin ? [{ href: "/partners", label: "Partners", icon: "🤝" }] : []),
+    ...(user?.role === "partner" ? [{ href: "/partner-page", label: "Partner Panel", icon: "🤝" }] : []),
     { href: "/alerts", label: "Alerts", icon: "🔔" },
     { href: "/emails", label: "Emails", icon: "✉️" },
+    { href: "/sms", label: "SMS", icon: "💬" },
+    { href: "/webhooks", label: "Webhooks", icon: "🔗" },
     { href: "/audit-logs", label: "Audit Logs", icon: "📝" },
   ];
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-50 bg-background/70 backdrop-blur-xl border-b border-border/40">
+      <header className="sticky top-0 z-50 frosted-overlay border-b border-border/40">
         <div className="flex items-center justify-between px-4 md:px-6 h-14">
           <Link href="/dashboard" className="font-heading text-xl italic text-foreground tracking-tight">
-            SR Finance
+            Loan DSA CRM
           </Link>
           <div className="flex items-center gap-3">
             <ThemeSwitch />
@@ -54,7 +62,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       </header>
       <div className="flex">
-        <aside className="w-56 min-h-[calc(100vh-3.5rem)] hidden md:block border-r border-border/30 bg-background/40">
+        <aside className="w-56 min-h-[calc(100vh-3.5rem)] hidden md:block glass-sidebar">
           <nav className="p-3 space-y-0.5">
             {navLinks.map((link) => {
               const isActive = router.pathname === link.href;

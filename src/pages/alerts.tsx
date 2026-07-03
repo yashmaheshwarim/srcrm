@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -11,19 +11,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, Clock, Calendar, Phone, CheckCircle2, Pencil } from "lucide-react";
+import { AlertCircle, Clock, Calendar, Phone, CheckCircle2, Pencil, ExternalLink } from "lucide-react";
 import { dataService } from "@/lib/data-service";
+import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
 import type { FollowUp } from "@/types";
 
 export default function AlertsPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, allUsers: users } = useAuth();
   const [filter, setFilter] = useState<"all" | "overdue" | "today" | "upcoming">("all");
   const [jobberFilter, setJobberFilter] = useState<string>("all");
+  // Customer detail dialog
+  const [customerDetailOpen, setCustomerDetailOpen] = useState(false);
+  const [selectedCustomerInfo, setSelectedCustomerInfo] = useState<{ id?: string; name?: string; mobile?: string }>({});
 
-  const allFollowUps = useMemo(() => {
-    const followUps = dataService.getFollowUps();
-    return isAdmin ? followUps : followUps.filter((f) => f.assignedTo === user?.id);
-  }, [isAdmin, user]);
+  const [allFollowUps, setAllFollowUps] = useState<FollowUp[]>([]);
+
+  useEffect(() => {
+    dataService.getFollowUps().then((followUps) => {
+      setAllFollowUps(isAdmin ? followUps : followUps.filter((f) => f.assignedTo === user?.id));
+    });
+  }, [isAdmin, user?.id]);
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -55,16 +62,16 @@ export default function AlertsPage() {
     };
   }, [allFollowUps, today]);
 
-  const markCompleted = (id: string) => {
-    dataService.updateFollowUp(id, { status: "completed" });
+  const markCompleted = async (id: string) => {
+    await dataService.updateFollowUp(id, { status: "completed" });
     window.location.reload();
   };
 
-  const reschedule = (followUp: FollowUp) => {
+  const reschedule = async (followUp: FollowUp) => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dateStr = tomorrow.toISOString().split("T")[0];
-    dataService.updateFollowUp(followUp.id, { nextFollowUpDate: dateStr, status: "pending" });
+    await dataService.updateFollowUp(followUp.id, { nextFollowUpDate: dateStr, status: "pending" });
     window.location.reload();
   };
 
@@ -127,7 +134,7 @@ export default function AlertsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Jobbers</SelectItem>
-                {dataService.getUsers().filter((u) => u.role === "jobber").map((u) => (
+                {users.filter((u) => u.role === "jobber").map((u) => (
                   <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
                 ))}
               </SelectContent>
@@ -173,7 +180,23 @@ export default function AlertsPage() {
                           key={f.id}
                           className={`border-b last:border-0 transition-colors ${isOverdue ? "bg-red-50/50" : isToday ? "bg-amber-50/50" : ""}`}
                         >
-                          <td className="py-3 px-2 font-medium">{f.customerName}</td>
+                          <td className="py-3 px-2">
+                            <button
+                              onClick={() => {
+                                setSelectedCustomerInfo({
+                                  name: f.customerName,
+                                  mobile: f.mobileNumber,
+                                });
+                                setCustomerDetailOpen(true);
+                              }}
+                              className="font-medium hover:text-primary transition-colors flex items-center gap-1 group"
+                            >
+                              <span className="underline underline-offset-2 decoration-dotted decoration-muted-foreground/40 group-hover:decoration-primary/60">
+                                {f.customerName}
+                              </span>
+                              <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                            </button>
+                          </td>
                           <td className="py-3 px-2">{f.mobileNumber}</td>
                           <td className="py-3 px-2">{f.type}</td>
                           <td className="py-3 px-2">
@@ -188,7 +211,7 @@ export default function AlertsPage() {
                           <td className="py-3 px-2 text-muted-foreground">{f.notes || "-"}</td>
                           {isAdmin && (
                             <td className="py-3 px-2">
-                              {dataService.getUsers().find((u) => u.id === f.assignedTo)?.fullName || f.assignedTo}
+                              {users.find((u) => u.id === f.assignedTo)?.fullName || f.assignedTo}
                             </td>
                           )}
                           <td className="py-3 px-2 text-right">
@@ -214,6 +237,15 @@ export default function AlertsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Customer Detail Dialog */}
+      <CustomerDetailDialog
+        open={customerDetailOpen}
+        onOpenChange={setCustomerDetailOpen}
+        customerId={selectedCustomerInfo.id}
+        customerName={selectedCustomerInfo.name}
+        mobileNumber={selectedCustomerInfo.mobile}
+      />
     </AppLayout>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -29,8 +29,10 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { dataService, createLender, updateLender, deleteLender } from "@/lib/data-service";
-import type { Lender } from "@/types";
+import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
+import type { Lender, LoanApplication, Customer } from "@/types";
 
 type BankDetailView = "list" | "detail";
 
@@ -52,9 +54,25 @@ export default function BanksPage() {
   const [editingBank, setEditingBank] = useState<Lender | null>(null);
   const [bankForm, setBankForm] = useState<Partial<Lender>>({});
 
-  const applications = dataService.getLoanApplications();
-  const lenders = dataService.getLenders();
-  const customers = dataService.getCustomers();
+  // Customer detail dialog
+  const [customerDetailOpen, setCustomerDetailOpen] = useState(false);
+  const [selectedCustomerInfo, setSelectedCustomerInfo] = useState<{ id?: string; name?: string; mobile?: string }>({});
+
+  const [applications, setApplications] = useState<LoanApplication[]>([]);
+  const [lenders, setLenders] = useState<Lender[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      dataService.getLoanApplications(),
+      dataService.getLenders(),
+      dataService.getCustomers(),
+    ]).then(([apps, lndrs, custs]) => {
+      setApplications(apps);
+      setLenders(lndrs);
+      setCustomers(custs);
+    });
+  }, []);
 
   const bankStats = useMemo(() => {
     const stats = lenders.map((lender) => {
@@ -105,8 +123,8 @@ export default function BanksPage() {
     const totalRequested = applications.reduce((sum, a) => sum + parseFloat(a.requestedAmount || "0"), 0);
     const totalApproved = applications.reduce((sum, a) => sum + parseFloat(a.approvalAmount || "0"), 0);
     const totalDisbursed = applications
-      .filter((a) => a.status === "disbursed")
-      .reduce((sum, a) => sum + parseFloat(a.approvalAmount || "0"), 0);
+        .filter((a) => a.status === "disbursed")
+        .reduce((sum, a) => sum + parseFloat(a.approvalAmount || "0"), 0);
 
     return {
       totalFiles,
@@ -135,12 +153,12 @@ export default function BanksPage() {
     setBankDialogOpen(true);
   };
 
-  const handleSaveBank = () => {
+  const handleSaveBank = async () => {
     if (!bankForm.name) return;
     if (editingBank) {
-      updateLender(editingBank.id, bankForm);
+      await updateLender(editingBank.id, bankForm);
     } else {
-      createLender({ name: bankForm.name });
+      await createLender({ name: bankForm.name });
     }
     setBankDialogOpen(false);
     setEditingBank(null);
@@ -148,10 +166,10 @@ export default function BanksPage() {
     window.location.reload();
   };
 
-  const handleDeleteBank = (id: string, e: React.MouseEvent) => {
+  const handleDeleteBank = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm("Are you sure you want to delete this bank? All applications linked to it will remain but may show unknown lender.")) {
-      deleteLender(id);
+      await deleteLender(id);
       window.location.reload();
     }
   };
@@ -256,7 +274,24 @@ export default function BanksPage() {
                     return (
                       <tr key={app.id} className="border-b last:border-0 hover:bg-muted/50">
                         <td className="py-2.5 px-3 font-mono text-xs">{app.applicationNumber || app.id.slice(0, 8)}</td>
-                        <td className="py-2.5 px-3">{customer?.fullName || "Unknown"}</td>
+                        <td className="py-2.5 px-3">
+                          <button
+                            onClick={() => {
+                              setSelectedCustomerInfo({
+                                id: app.customerId,
+                                name: customer?.fullName || app.customerName,
+                                mobile: app.mobileNumber,
+                              });
+                              setCustomerDetailOpen(true);
+                            }}
+                            className="hover:text-primary transition-colors flex items-center gap-1 group"
+                          >
+                            <span className="underline underline-offset-2 decoration-dotted decoration-muted-foreground/40 group-hover:decoration-primary/60">
+                              {customer?.fullName || "Unknown"}
+                            </span>
+                            <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                          </button>
+                        </td>
                         <td className="py-2.5 px-3 text-muted-foreground">{app.loanCategory}</td>
                         <td className="py-2.5 px-3 text-right">
                           {formatCurrency(parseFloat(app.requestedAmount || "0"))}
@@ -482,6 +517,15 @@ export default function BanksPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Customer Detail Dialog */}
+      <CustomerDetailDialog
+        open={customerDetailOpen}
+        onOpenChange={setCustomerDetailOpen}
+        customerId={selectedCustomerInfo.id}
+        customerName={selectedCustomerInfo.name}
+        mobileNumber={selectedCustomerInfo.mobile}
+      />
     </AppLayout>
   );
 }

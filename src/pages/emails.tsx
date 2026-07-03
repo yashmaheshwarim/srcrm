@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -16,20 +16,18 @@ import {
   Clock,
   Image as ImageIcon,
 } from "lucide-react";
+import { dataService } from "@/lib/data-service";
 
 interface EmailRecord {
   id: string;
   to: string[];
   subject: string;
   body: string;
+  hasAttachment?: boolean;
   imageAttachment?: string;
   sentAt: string;
   sentBy: string;
   status: "sent" | "draft";
-}
-
-function generateId() {
-  return Math.random().toString(36).substring(2, 10);
 }
 
 export default function EmailsPage() {
@@ -40,13 +38,22 @@ export default function EmailsPage() {
   const [imageAttachment, setImageAttachment] = useState<string | null>(null);
   const [imageName, setImageName] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [sentEmails, setSentEmails] = useState<EmailRecord[]>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("sr_emails");
-      return stored ? JSON.parse(stored) : [];
-    }
-    return [];
-  });
+  const [sentEmails, setSentEmails] = useState<EmailRecord[]>([]);
+
+  useEffect(() => {
+    dataService.getSentEmails().then((emails) => {
+      setSentEmails(emails.map((e) => ({
+        id: e.id,
+        to: e.recipients,
+        subject: e.subject,
+        body: e.body,
+        hasAttachment: e.hasAttachment || false,
+        sentAt: e.sentAt,
+        sentBy: e.sentBy,
+        status: "sent" as const,
+      })));
+    });
+  }, []);
   const [activeTab, setActiveTab] = useState<"compose" | "sent">("compose");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -78,7 +85,7 @@ export default function EmailsPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!recipients.trim() || !subject.trim() || !body.trim()) {
       alert("Please fill in all required fields.");
       return;
@@ -91,29 +98,34 @@ export default function EmailsPage() {
       .map((e) => e.trim())
       .filter((e) => e.length > 0);
 
-    const email: EmailRecord = {
-      id: generateId(),
-      to: toList,
+    await dataService.addSentEmail({
+      recipients: toList,
       subject: subject.trim(),
       body: body.trim(),
-      imageAttachment: imageAttachment || undefined,
+      hasAttachment: !!imageAttachment,
       sentAt: new Date().toISOString(),
       sentBy: user?.fullName || "Admin",
-      status: "sent",
-    };
+    });
 
-    setTimeout(() => {
-      const updated = [email, ...sentEmails];
-      setSentEmails(updated);
-      localStorage.setItem("sr_emails", JSON.stringify(updated));
+    // Refresh sent emails list
+    const emails = await dataService.getSentEmails();
+    setSentEmails(emails.map((e) => ({
+      id: e.id,
+      to: e.recipients,
+      subject: e.subject,
+      body: e.body,
+      hasAttachment: e.hasAttachment,
+      sentAt: e.sentAt,
+      sentBy: e.sentBy,
+      status: "sent" as const,
+    })));
 
-      setRecipients("");
-      setSubject("");
-      setBody("");
-      removeImage();
-      setSending(false);
-      setActiveTab("sent");
-    }, 800);
+    setRecipients("");
+    setSubject("");
+    setBody("");
+    removeImage();
+    setSending(false);
+    setActiveTab("sent");
   };
 
   return (
@@ -341,15 +353,11 @@ export default function EmailsPage() {
                           {new Date(email.sentAt).toLocaleString()}
                         </p>
                       </div>
-                      {email.imageAttachment && (
+                      {email.hasAttachment && (
                         <div className="shrink-0 ml-4">
-                          <Image
-                            src={email.imageAttachment}
-                            alt="Attachment"
-                            width={64}
-                            height={64}
-                            className="h-16 w-16 object-cover rounded-md border"
-                          />
+                          <div className="h-16 w-16 rounded-md border flex items-center justify-center bg-muted/30">
+                            <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                          </div>
                         </div>
                       )}
                     </div>

@@ -123,18 +123,8 @@ export async function sendBulkSMS(
 
 /**
  * Verify an incoming webhook from httpSMS
- * @param _payload - The request body to verify
- * @param _signature - The HMAC signature from the request header
- * @param _secret - The shared secret for HMAC verification
+ * TODO: Implement HMAC verification in production
  */
-export function verifyWebhookSignature(
-  _payload: string,
-  _signature: string,
-  _secret: string
-): boolean {
-  // TODO: Implement HMAC verification in production
-  // const hmac = crypto.createHmac('sha256', _secret);
-  // hmac.update(_payload);
-  // return hmac.digest('hex') === _signature;
+export function verifyWebhookSignature(): boolean {
   return true;
 }

@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { dataService } from "@/lib/data-service";
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const apiKey = req.headers["x-api-key"] as string;
   const expectedKey = process.env.N8N_API_KEY || "sr-n8n-key-change-me";
 
@@ -10,7 +10,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (req.method === "GET") {
-    const leads = dataService.getLeads();
+    const leads = await dataService.getLeads();
     return res.status(200).json({ success: true, data: leads });
   }
 
@@ -21,7 +21,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.status(400).json({ success: false, error: "Missing required fields: customerName, mobileNumber" });
     }
 
-    const newLead = dataService.addLead({
+    const newLead = await dataService.addLead({
       customerName,
       mobileNumber,
       city: city || "",

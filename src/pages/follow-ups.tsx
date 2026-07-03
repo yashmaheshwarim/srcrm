@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -21,9 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Pencil, CheckCircle2, Phone, Download } from "lucide-react";
+import { Plus, Search, Pencil, CheckCircle2, Phone, Download, ExternalLink } from "lucide-react";
 import { dataService } from "@/lib/data-service";
 import { exportToCSV, exportToPDF, followUpsToExportRows } from "@/lib/export-utils";
+import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
 import type { FollowUp } from "@/types";
 
 const followUpTypes = ["Call", "WhatsApp", "Meeting", "Document Collection", "Callback"];
@@ -31,16 +32,22 @@ const priorities = ["low", "medium", "high"];
 
 
 export default function FollowUpsPage() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, allUsers: users } = useAuth();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingFollowUp, setEditingFollowUp] = useState<FollowUp | null>(null);
   const [form, setForm] = useState<Partial<FollowUp>>({});
+  // Customer detail dialog
+  const [customerDetailOpen, setCustomerDetailOpen] = useState(false);
+  const [selectedCustomerInfo, setSelectedCustomerInfo] = useState<{ id?: string; name?: string; mobile?: string }>({});
 
-  const allFollowUps = useMemo(() => {
-    const followUps = dataService.getFollowUps();
-    return isAdmin ? followUps : followUps.filter((f) => f.assignedTo === user?.id);
-  }, [isAdmin, user]);
+  const [allFollowUps, setAllFollowUps] = useState<FollowUp[]>([]);
+
+  useEffect(() => {
+    dataService.getFollowUps().then((followUps) => {
+      setAllFollowUps(isAdmin ? followUps : followUps.filter((f) => f.assignedTo === user?.id));
+    });
+  }, [isAdmin, user?.id]);
 
   const filtered = useMemo(() => {
     return allFollowUps.filter(
@@ -68,13 +75,13 @@ export default function FollowUpsPage() {
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.customerName || !form.mobileNumber || !form.nextFollowUpDate || !form.nextFollowUpTime) return;
 
     if (editingFollowUp) {
-      dataService.updateFollowUp(editingFollowUp.id, form as Partial<FollowUp>);
+      await dataService.updateFollowUp(editingFollowUp.id, form as Partial<FollowUp>);
     } else {
-      dataService.createFollowUp({
+      await dataService.createFollowUp({
         customerName: form.customerName || "",
         mobileNumber: form.mobileNumber || "",
         leadId: form.leadId || "",
@@ -94,8 +101,8 @@ export default function FollowUpsPage() {
     window.location.reload();
   };
 
-  const markCompleted = (id: string) => {
-    dataService.updateFollowUp(id, { status: "completed" });
+  const markCompleted = async (id: string) => {
+    await dataService.updateFollowUp(id, { status: "completed" });
     window.location.reload();
   };
 
@@ -168,7 +175,23 @@ export default function FollowUpsPage() {
                   ) : (
                     filtered.map((f) => (
                       <tr key={f.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
-                        <td className="py-3 px-2 font-medium">{f.customerName}</td>
+                        <td className="py-3 px-2">
+                            <button
+                              onClick={() => {
+                                setSelectedCustomerInfo({
+                                  name: f.customerName,
+                                  mobile: f.mobileNumber,
+                                });
+                                setCustomerDetailOpen(true);
+                              }}
+                              className="font-medium hover:text-primary transition-colors flex items-center gap-1 group"
+                            >
+                              <span className="underline underline-offset-2 decoration-dotted decoration-muted-foreground/40 group-hover:decoration-primary/60">
+                                {f.customerName}
+                              </span>
+                              <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                            </button>
+                          </td>
                         <td className="py-3 px-2">{f.mobileNumber}</td>
                         <td className="py-3 px-2">{f.type}</td>
                         <td className="py-3 px-2">
@@ -183,7 +206,7 @@ export default function FollowUpsPage() {
                         </td>
                         {isAdmin && (
                           <td className="py-3 px-2">
-                            {dataService.getUsers().find((u) => u.id === f.assignedTo)?.fullName || f.assignedTo}
+                            {users.find((u) => u.id === f.assignedTo)?.fullName || f.assignedTo}
                           </td>
                         )}
                         <td className="py-3 px-2 text-right">
@@ -227,6 +250,14 @@ export default function FollowUpsPage() {
                 <Label>Mobile *</Label>
                 <Input value={form.mobileNumber || ""} onChange={(e) => setForm({ ...form, mobileNumber: e.target.value })} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input value={form.address || ""} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Customer address" />
+            </div>
+            <div className="space-y-2">
+              <Label>Purpose of Loan</Label>
+              <Input value={form.purposeOfLoan || ""} onChange={(e) => setForm({ ...form, purposeOfLoan: e.target.value })} placeholder="e.g. Business expansion" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -272,7 +303,7 @@ export default function FollowUpsPage() {
                 <Select value={form.assignedTo} onValueChange={(v) => setForm({ ...form, assignedTo: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {dataService.getUsers().filter((u) => u.role === "jobber").map((u) => (
+                    {users.filter((u) => u.role === "jobber").map((u) => (
                       <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
                     ))}
                   </SelectContent>
@@ -286,6 +317,15 @@ export default function FollowUpsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Customer Detail Dialog */}
+      <CustomerDetailDialog
+        open={customerDetailOpen}
+        onOpenChange={setCustomerDetailOpen}
+        customerId={selectedCustomerInfo.id}
+        customerName={selectedCustomerInfo.name}
+        mobileNumber={selectedCustomerInfo.mobile}
+      />
     </AppLayout>
   );
 }

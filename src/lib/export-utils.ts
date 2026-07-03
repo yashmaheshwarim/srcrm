@@ -37,13 +37,14 @@ export function exportToPDF(title: string, headers: string[], rows: string[][], 
 }
 
 export function leadsToExportRows(leads: import("@/types").Lead[]): [string[], string[][]] {
-  const headers = ["Customer", "Mobile", "City", "Category", "Amount", "Status", "Source", "Assigned To", "Created At"];
+  const headers = ["Customer", "Mobile", "City", "Category", "Amount", "CIBIL", "Status", "Source", "Assigned To", "Created At"];
   const rows = leads.map((l) => [
     l.customerName,
     l.mobileNumber,
     l.city,
     l.loanCategory,
     l.requiredAmount || "",
+    l.cibilScore || "",
     l.status,
     l.leadSource,
     l.assignedTo,
@@ -53,7 +54,7 @@ export function leadsToExportRows(leads: import("@/types").Lead[]): [string[], s
 }
 
 export function customersToExportRows(customers: import("@/types").Customer[]): [string[], string[][]] {
-  const headers = ["Name", "Mobile", "Address", "PAN", "Aadhaar", "Employment", "Income", "Loan Category", "Docs Collected", "Assigned To", "Created At"];
+  const headers = ["Name", "Mobile", "Address", "PAN", "Aadhaar", "Employment", "Income", "Loan Category", "CIBIL", "Property Address", "Scheme Name", "Date Added", "Docs Collected", "Assigned To", "Created At"];
   const rows = customers.map((c) => [
     c.fullName,
     c.mobileNumber,
@@ -63,6 +64,10 @@ export function customersToExportRows(customers: import("@/types").Customer[]): 
     c.employmentType,
     c.monthlyIncome || "",
     c.loanCategory || "",
+    c.cibilScore || "",
+    c.propertyAddress || "",
+    c.schemeName || "",
+    c.dateAdded || "",
     `${c.documents?.filter((d) => d.status === "received" || d.status === "verified").length || 0}/${c.documents?.length || 0}`,
     c.assignedTo,
     c.createdAt,
@@ -71,15 +76,21 @@ export function customersToExportRows(customers: import("@/types").Customer[]): 
 }
 
 export function applicationsToExportRows(apps: import("@/types").LoanApplication[]): [string[], string[][]] {
-  const headers = ["Category", "Lender", "Requested Amount", "Status", "Application #", "Approval Amount", "Disbursement Date", "Assigned To", "Created At"];
+  const headers = ["Customer Name", "Mobile", "Category", "Lender", "Requested Amount", "CIBIL", "Status", "Application #", "Approval Amount", "Disbursement Date", "Scheme Name", "Property Address", "Completion Status", "Assigned To", "Created At"];
   const rows = apps.map((a) => [
+    a.customerName,
+    a.mobileNumber,
     a.loanCategory,
     a.lender,
     String(a.requestedAmount),
+    a.cibilScore || "",
     a.status,
     a.applicationNumber || "",
     String(a.approvalAmount ?? ""),
     a.disbursementDate || "",
+    a.schemeName || "",
+    a.propertyAddress || "",
+    a.completionStatus || "",
     a.assignedTo,
     a.createdAt,
   ]);

@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -26,15 +26,13 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    setTimeout(() => {
-      const result = login(username.trim(), password.trim());
-      if (result.success) {
-        router.push("/dashboard");
-      } else {
-        setError(result.error || "Invalid username or password");
-      }
-      setLoading(false);
-    }, 400);
+    const result = await login(username.trim(), password.trim());
+    if (result.success) {
+      router.push("/dashboard");
+    } else {
+      setError(result.error || "Invalid username or password");
+    }
+    setLoading(false);
   };
 
   return (
@@ -44,11 +42,11 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-foreground/[0.03] mb-4">
             <Landmark className="h-6 w-6 text-foreground/60" />
           </div>
-          <h1 className="font-heading text-3xl italic text-foreground tracking-tight">SR Finance</h1>
+          <h1 className="font-heading text-3xl italic text-foreground tracking-tight">Loan DSA CRM</h1>
           <p className="text-sm text-muted-foreground/60 mt-1">Loan DSA Management</p>
         </div>
 
-        <div className="rounded-xl border border-border/40 bg-background/60 backdrop-blur-xl p-6">
+        <div className="glass-panel p-6">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-xs font-medium text-muted-foreground/80 uppercase tracking-widest">Username</Label>

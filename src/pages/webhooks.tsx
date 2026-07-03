@@ -40,14 +40,11 @@ const webhookEndpoints: WebhookEndpoint[] = [
 
 export default function WebhooksPage() {
   const { isAdmin } = useAuth();
-  const [apiKey, setApiKey] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("sr_n8n_api_key") || "sr-n8n-key-change-me";
-    }
-    return "sr-n8n-key-change-me";
-  });
+  const [apiKey, setApiKey] = useState("sr-n8n-key-change-me");
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState(
+    typeof window !== "undefined" ? localStorage.getItem("sr_n8n_webhook_url") || "" : ""
+  );
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://your-domain.com";
 
@@ -61,8 +58,7 @@ export default function WebhooksPage() {
   const regenerateKey = () => {
     const newKey = `sr-n8n-${Math.random().toString(36).substring(2, 15)}-${Date.now().toString(36)}`;
     setApiKey(newKey);
-    localStorage.setItem("sr_n8n_api_key", newKey);
-    toast({ title: "API Key Regenerated", description: "Make sure to update it in your n8n workflows" });
+    toast({ title: "API Key Regenerated", description: "Make sure to update it in your n8n workflows. Note: API key is now stored in memory and will reset on page refresh." });
   };
 
   if (!isAdmin) {
@@ -107,7 +103,6 @@ export default function WebhooksPage() {
                       value={apiKey}
                       onChange={(e) => {
                         setApiKey(e.target.value);
-                        localStorage.setItem("sr_n8n_api_key", e.target.value);
                       }}
                       className="input-premium font-mono text-xs"
                       type="password"
@@ -167,6 +162,7 @@ export default function WebhooksPage() {
                         setWebhookUrl(e.target.value);
                         localStorage.setItem("sr_n8n_webhook_url", e.target.value);
                       }}
+                      // Webhook URL is persisted in localStorage for convenience
                       placeholder="https://your-n8n-instance.com/webhook/..."
                       className="input-premium text-xs font-mono"
                     />

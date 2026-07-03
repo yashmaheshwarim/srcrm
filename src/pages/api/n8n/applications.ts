@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { dataService } from "@/lib/data-service";
 import { generateDocumentChecklist } from "@/lib/document-template";
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const apiKey = req.headers["x-api-key"] as string;
   const expectedKey = process.env.N8N_API_KEY || "sr-n8n-key-change-me";
 
@@ -11,7 +11,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (req.method === "GET") {
-    const applications = dataService.getLoanApplications();
+    const applications = await dataService.getLoanApplications();
     return res.status(200).json({ success: true, data: applications });
   }
 
@@ -24,7 +24,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
     const docs = generateDocumentChecklist(loanCategory as "Business Loan" | "Salaried Loan", hasCoApplicant || false);
 
-    const newApp = dataService.createLoanApplication({
+    const newApp = await dataService.createLoanApplication({
       customerId: customerId || "",
       customerName: customerName || "",
       mobileNumber: mobileNumber || "",

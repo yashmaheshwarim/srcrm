@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -21,9 +21,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, UserCircle, Eye, Users, FileText, ClipboardList, PhoneCall } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, UserCircle, Eye, Users, FileText, ClipboardList, PhoneCall, ExternalLink } from "lucide-react";
 import { dataService } from "@/lib/data-service";
-import type { User } from "@/types";
+import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
+import type { User, Lead, Customer, LoanApplication, FollowUp } from "@/types";
 
 export default function JobbersPage() {
   const { isAdmin } = useAuth();
@@ -32,13 +33,35 @@ export default function JobbersPage() {
   const [editingJobber, setEditingJobber] = useState<User | null>(null);
   const [form, setForm] = useState<Partial<User>>({});
 
+  // Customer detail dialog
+  const [customerDetailOpen, setCustomerDetailOpen] = useState(false);
+  const [selectedCustomerInfo, setSelectedCustomerInfo] = useState<{ id?: string; name?: string; mobile?: string }>({});
+
   // Jobber detail view state
   const [detailJobber, setDetailJobber] = useState<User | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailTab, setDetailTab] = useState<"overview" | "leads" | "customers" | "applications" | "followups">("overview");
 
-  const allJobbers = useMemo(() => {
-    return dataService.getUsers().filter((u) => u.role === "jobber");
+  const [allJobbers, setAllJobbers] = useState<User[]>([]);
+  const [allLeads, setAllLeads] = useState<Lead[]>([]);
+  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
+  const [allApps, setAllApps] = useState<LoanApplication[]>([]);
+  const [allFollowUps, setAllFollowUps] = useState<FollowUp[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      dataService.getUsers(),
+      dataService.getLeads(),
+      dataService.getCustomers(),
+      dataService.getLoanApplications(),
+      dataService.getFollowUps(),
+    ]).then(([users, leads, customers, apps, fups]) => {
+      setAllJobbers(users.filter((u) => u.role === "jobber"));
+      setAllLeads(leads);
+      setAllCustomers(customers);
+      setAllApps(apps);
+      setAllFollowUps(fups);
+    });
   }, []);
 
   const filtered = useMemo(() => {
@@ -68,13 +91,13 @@ export default function JobbersPage() {
     setDetailOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.fullName || !form.mobileNumber || !form.username || !form.password) return;
 
     if (editingJobber) {
-      dataService.updateUser(editingJobber.id, form as Partial<User>);
+      await dataService.updateUser(editingJobber.id, form as Partial<User>);
     } else {
-      dataService.createUser({
+      await dataService.createUser({
         fullName: form.fullName || "",
         mobileNumber: form.mobileNumber || "",
         email: "",
@@ -90,14 +113,14 @@ export default function JobbersPage() {
     window.location.reload();
   };
 
-  const handleToggleStatus = (jobber: User) => {
-    dataService.updateUser(jobber.id, { status: jobber.status === "active" ? "inactive" : "active" });
+  const handleToggleStatus = async (jobber: User) => {
+    await dataService.updateUser(jobber.id, { status: jobber.status === "active" ? "inactive" : "active" });
     window.location.reload();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Delete this jobber? All their data will remain but they cannot log in.")) {
-      dataService.deleteUser(id);
+      await dataService.deleteUser(id);
       window.location.reload();
     }
   };
@@ -161,8 +184,8 @@ export default function JobbersPage() {
                     </tr>
                   ) : (
                     filtered.map((j) => {
-                      const leads = dataService.getLeads().filter((l) => l.assignedTo === j.id).length;
-                      const apps = dataService.getLoanApplications().filter((a) => a.assignedTo === j.id).length;
+                      const leads = allLeads.filter((l) => l.assignedTo === j.id).length;
+                      const apps = allApps.filter((a) => a.assignedTo === j.id).length;
                       return (
                         <tr key={j.id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
                           <td className="py-3 px-2 font-medium">
@@ -224,10 +247,10 @@ export default function JobbersPage() {
           </DialogHeader>
 
           {detailJobber && (() => {
-            const jobberLeads = dataService.getLeads().filter((l) => l.assignedTo === detailJobber.id);
-            const jobberCustomers = dataService.getCustomers().filter((c) => c.assignedTo === detailJobber.id);
-            const jobberApps = dataService.getLoanApplications().filter((a) => a.assignedTo === detailJobber.id);
-            const jobberFollowUps = dataService.getFollowUps().filter((f) => f.assignedTo === detailJobber.id);
+            const jobberLeads = allLeads.filter((l) => l.assignedTo === detailJobber.id);
+            const jobberCustomers = allCustomers.filter((c) => c.assignedTo === detailJobber.id);
+            const jobberApps = allApps.filter((a) => a.assignedTo === detailJobber.id);
+            const jobberFollowUps = allFollowUps.filter((f) => f.assignedTo === detailJobber.id);
 
             const tabContent = (tab: string) => {
               switch (tab) {
@@ -391,7 +414,20 @@ export default function JobbersPage() {
                               ) : (
                                 jobberLeads.map((lead) => (
                                   <tr key={lead.id} className="border-b last:border-0 hover:bg-muted/30">
-                                    <td className="py-2 px-3 font-medium">{lead.customerName}</td>
+                                    <td className="py-2 px-3">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedCustomerInfo({ name: lead.customerName, mobile: lead.mobileNumber });
+                                          setCustomerDetailOpen(true);
+                                        }}
+                                        className="font-medium hover:text-primary transition-colors flex items-center gap-1 group"
+                                      >
+                                        <span className="underline underline-offset-2 decoration-dotted decoration-muted-foreground/40 group-hover:decoration-primary/60">
+                                          {lead.customerName}
+                                        </span>
+                                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                                      </button>
+                                    </td>
                                     <td className="py-2 px-3">{lead.mobileNumber}</td>
                                     <td className="py-2 px-3">{lead.loanCategory}</td>
                                     <td className="py-2 px-3">{lead.requiredAmount || "-"}</td>
@@ -434,7 +470,20 @@ export default function JobbersPage() {
                               ) : (
                                 jobberCustomers.map((c) => (
                                   <tr key={c.id} className="border-b last:border-0 hover:bg-muted/30">
-                                    <td className="py-2 px-3 font-medium">{c.fullName}</td>
+                                    <td className="py-2 px-3">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedCustomerInfo({ id: c.id, name: c.fullName, mobile: c.mobileNumber });
+                                          setCustomerDetailOpen(true);
+                                        }}
+                                        className="font-medium hover:text-primary transition-colors flex items-center gap-1 group"
+                                      >
+                                        <span className="underline underline-offset-2 decoration-dotted decoration-muted-foreground/40 group-hover:decoration-primary/60">
+                                          {c.fullName}
+                                        </span>
+                                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                                      </button>
+                                    </td>
                                     <td className="py-2 px-3">{c.mobileNumber}</td>
                                     <td className="py-2 px-3">{c.employmentType}</td>
                                     <td className="py-2 px-3">{c.monthlyIncome || "-"}</td>
@@ -518,7 +567,20 @@ export default function JobbersPage() {
                               ) : (
                                 jobberFollowUps.map((fu) => (
                                   <tr key={fu.id} className="border-b last:border-0 hover:bg-muted/30">
-                                    <td className="py-2 px-3 font-medium">{fu.customerName}</td>
+                                    <td className="py-2 px-3">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedCustomerInfo({ name: fu.customerName, mobile: fu.mobileNumber });
+                                          setCustomerDetailOpen(true);
+                                        }}
+                                        className="font-medium hover:text-primary transition-colors flex items-center gap-1 group"
+                                      >
+                                        <span className="underline underline-offset-2 decoration-dotted decoration-muted-foreground/40 group-hover:decoration-primary/60">
+                                          {fu.customerName}
+                                        </span>
+                                        <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
+                                      </button>
+                                    </td>
                                     <td className="py-2 px-3">{fu.type}</td>
                                     <td className="py-2 px-3 text-xs">{fu.nextFollowUpDate}</td>
                                     <td className="py-2 px-3"><StatusBadge status={fu.priority} /></td>
@@ -592,6 +654,15 @@ export default function JobbersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Customer Detail Dialog */}
+      <CustomerDetailDialog
+        open={customerDetailOpen}
+        onOpenChange={setCustomerDetailOpen}
+        customerId={selectedCustomerInfo.id}
+        customerName={selectedCustomerInfo.name}
+        mobileNumber={selectedCustomerInfo.mobile}
+      />
     </AppLayout>
   );
 }

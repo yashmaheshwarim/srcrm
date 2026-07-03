@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,17 +11,17 @@ import {
 } from "@/components/ui/select";
 import { Search, History } from "lucide-react";
 import { dataService } from "@/lib/data-service";
+import type { AuditLog } from "@/types";
 
 const actionTypes = ["all", "lead_created", "lead_updated", "customer_created", "customer_updated", "application_created", "application_updated", "follow_up_created", "follow_up_updated", "user_login", "user_created"];
 
 export default function AuditLogsPage() {
   const [search, setSearch] = useState("");
-
-  // Access is open to all users
   const [actionFilter, setActionFilter] = useState<string>("all");
+  const [allLogs, setAllLogs] = useState<AuditLog[]>([]);
 
-  const allLogs = useMemo(() => {
-    return dataService.getAuditLogs();
+  useEffect(() => {
+    dataService.getAuditLogs().then(setAllLogs);
   }, []);
 
   const filtered = useMemo(() => {
