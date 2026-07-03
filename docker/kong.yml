@@ -1,0 +1,51 @@
+# ============================================
+# Kong API Gateway Configuration
+# Routes incoming API requests to the appropriate
+# Supabase backend services.
+# ============================================
+_format_version: "2.1"
+_transform: true
+
+services:
+  # PostgREST (REST API for the database)
+  - name: rest-api
+    url: http://api:3000
+    routes:
+      - name: rest-route
+        paths:
+          - /rest/v1
+        strip_path: true
+        methods:
+          - GET
+          - POST
+          - PATCH
+          - PUT
+          - DELETE
+          - OPTIONS
+
+  # GoTrue (Authentication)
+  - name: auth-api
+    url: http://auth:9999
+    routes:
+      - name: auth-route
+        paths:
+          - /auth/v1
+        strip_path: true
+
+  # Realtime (WebSocket-based realtime subscriptions)
+  - name: realtime-api
+    url: http://realtime:4000
+    routes:
+      - name: realtime-route
+        paths:
+          - /realtime/v1
+        strip_path: true
+
+  # Storage API
+  - name: storage-api
+    url: http://storage:5000
+    routes:
+      - name: storage-route
+        paths:
+          - /storage/v1
+        strip_path: true
