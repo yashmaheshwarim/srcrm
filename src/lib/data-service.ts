@@ -75,6 +75,7 @@ function mapLead(r: any): Lead {
 function mapCustomer(r: any): Customer {
   const docs = typeof r.documents === "string" ? JSON.parse(r.documents) : (r.documents || []);
   const coApps = typeof r.co_applicants === "string" ? JSON.parse(r.co_applicants) : (r.co_applicants || []);
+  const storedFiles = typeof r.stored_files === "string" ? JSON.parse(r.stored_files) : (r.stored_files || []);
   return {
     id: r.id, fullName: r.full_name, mobileNumber: r.mobile_number,
     address: r.address || "", residenceAddress: r.residence_address || undefined,
@@ -87,6 +88,7 @@ function mapCustomer(r: any): Customer {
     cibilScore: r.cibil_score || undefined,
     purchaseValue: r.purchase_value || undefined, saleDeedAmount: r.sale_deed_amount || undefined,
     documents: docs,
+    storedFiles: storedFiles,
     propertyAddress: r.property_address || undefined,
     schemeName: r.scheme_name || undefined,
     dateAdded: r.date_added || undefined,
@@ -95,6 +97,7 @@ function mapCustomer(r: any): Customer {
 function mapApplication(r: any): LoanApplication {
   const docs = typeof r.documents === "string" ? JSON.parse(r.documents) : (r.documents || []);
   const coApps = typeof r.co_applicants === "string" ? JSON.parse(r.co_applicants) : (r.co_applicants || []);
+  const storedFiles = typeof r.stored_files === "string" ? JSON.parse(r.stored_files) : (r.stored_files || []);
   return {
     id: r.id, customerId: r.customer_id || "", customerName: r.customer_name || "",
     mobileNumber: r.mobile_number || "", address: r.address || undefined,
@@ -107,6 +110,7 @@ function mapApplication(r: any): LoanApplication {
     cibilScore: r.cibil_score || undefined,
     purchaseValue: r.purchase_value || undefined, saleDeedAmount: r.sale_deed_amount || undefined,
     status: r.status, assignedTo: r.assigned_to, documents: docs,
+    storedFiles: storedFiles,
     notes: r.notes || "", createdAt: r.created_at,
     applicationNumber: r.application_number || undefined,
     submissionDate: r.submission_date || undefined,
@@ -295,32 +299,39 @@ export async function getCustomers(): Promise<Customer[]> {
 }
 
 export async function addCustomer(customer: Omit<Customer, "id" | "createdAt">): Promise<Customer> {
+  const payload: any = {
+    full_name: customer.fullName,
+    mobile_number: customer.mobileNumber,
+    address: customer.address || "",
+    residence_address: customer.residenceAddress || null,
+    office_address: customer.officeAddress || null,
+    pan_number: customer.panNumber || "",
+    aadhaar_number: customer.aadhaarNumber || "",
+    employment_type: customer.employmentType,
+    monthly_income: customer.monthlyIncome || "",
+    existing_liabilities: customer.existingLiabilities || "",
+    assigned_to: customer.assignedTo,
+    notes: customer.notes || "",
+    loan_category: customer.loanCategory || null,
+    purpose_of_loan: customer.purposeOfLoan || null,
+    has_co_applicant: customer.hasCoApplicant || false,
+    co_applicants: JSON.stringify(customer.coApplicants || []),
+    cibil_score: customer.cibilScore || null,
+    purchase_value: customer.purchaseValue || null,
+    sale_deed_amount: customer.saleDeedAmount || null,
+    documents: JSON.stringify(customer.documents || []),
+    property_address: customer.propertyAddress || null,
+    scheme_name: customer.schemeName || null,
+    date_added: customer.dateAdded || null,
+  };
+
+  // Only include stored_files if it has data (to handle missing DB column gracefully)
+  if (customer.storedFiles && customer.storedFiles.length > 0) {
+    payload.stored_files = JSON.stringify(customer.storedFiles);
+  }
+
   const { data, error } = await table("customers")
-    .insert({
-      full_name: customer.fullName,
-      mobile_number: customer.mobileNumber,
-      address: customer.address || "",
-      residence_address: customer.residenceAddress || null,
-      office_address: customer.officeAddress || null,
-      pan_number: customer.panNumber || "",
-      aadhaar_number: customer.aadhaarNumber || "",
-      employment_type: customer.employmentType,
-      monthly_income: customer.monthlyIncome || "",
-      existing_liabilities: customer.existingLiabilities || "",
-      assigned_to: customer.assignedTo,
-      notes: customer.notes || "",
-      loan_category: customer.loanCategory || null,
-      purpose_of_loan: customer.purposeOfLoan || null,
-      has_co_applicant: customer.hasCoApplicant || false,
-      co_applicants: JSON.stringify(customer.coApplicants || []),
-      cibil_score: customer.cibilScore || null,
-      purchase_value: customer.purchaseValue || null,
-      sale_deed_amount: customer.saleDeedAmount || null,
-      documents: JSON.stringify(customer.documents || []),
-      property_address: customer.propertyAddress || null,
-      scheme_name: customer.schemeName || null,
-      date_added: customer.dateAdded || null,
-    })
+    .insert(payload)
     .select()
     .single();
   if (error || !data) throw new Error(error?.message || "Failed to create customer");
@@ -349,6 +360,7 @@ export async function updateCustomer(id: string, updates: Partial<Customer>): Pr
   if (updates.purchaseValue !== undefined) db.purchase_value = updates.purchaseValue;
   if (updates.saleDeedAmount !== undefined) db.sale_deed_amount = updates.saleDeedAmount;
   if (updates.documents !== undefined) db.documents = JSON.stringify(updates.documents);
+  if (updates.storedFiles !== undefined && updates.storedFiles.length > 0) db.stored_files = JSON.stringify(updates.storedFiles);
   if (updates.propertyAddress !== undefined) db.property_address = updates.propertyAddress;
   if (updates.schemeName !== undefined) db.scheme_name = updates.schemeName;
   if (updates.dateAdded !== undefined) db.date_added = updates.dateAdded;
@@ -372,40 +384,47 @@ export async function getLoanApplications(): Promise<LoanApplication[]> {
 }
 
 export async function createLoanApplication(app: Omit<LoanApplication, "id" | "createdAt">): Promise<LoanApplication> {
+  const payload: any = {
+    customer_id: app.customerId || "",
+    customer_name: app.customerName || "",
+    mobile_number: app.mobileNumber || "",
+    address: app.address || null,
+    residence_address: app.residenceAddress || null,
+    office_address: app.officeAddress || null,
+    loan_category: app.loanCategory,
+    purpose_of_loan: app.purposeOfLoan || null,
+    lender: app.lender,
+    requested_amount: app.requestedAmount,
+    approval_amount: app.approvalAmount || null,
+    disbursed_amount: app.disbursedAmount || null,
+    interest_rate: app.interestRate || null,
+    tenure: app.tenure || null,
+    emi_amount: app.emiAmount || null,
+    cibil_score: app.cibilScore || null,
+    purchase_value: app.purchaseValue || null,
+    sale_deed_amount: app.saleDeedAmount || null,
+    status: app.status || "draft",
+    property_address: app.propertyAddress || null,
+    scheme_name: app.schemeName || null,
+    completion_status: app.completionStatus || null,
+    assigned_to: app.assignedTo,
+    documents: JSON.stringify(app.documents || []),
+    notes: app.notes || "",
+    application_number: app.applicationNumber || null,
+    submission_date: app.submissionDate || null,
+    disbursement_date: app.disbursementDate || null,
+    rejection_reason: app.rejectionReason || null,
+    has_co_applicant: app.hasCoApplicant || false,
+    co_applicants: JSON.stringify(app.coApplicants || []),
+  };
+
+  // Only include stored_files if it has data (to handle missing DB column gracefully)
+  if (app.storedFiles && app.storedFiles.length > 0) {
+    payload.stored_files = JSON.stringify(app.storedFiles);
+  }
+
   const { data, error } = await table("loan_applications")
-    .insert({
-      customer_id: app.customerId || "",
-      customer_name: app.customerName || "",
-      mobile_number: app.mobileNumber || "",
-      address: app.address || null,
-      residence_address: app.residenceAddress || null,
-      office_address: app.officeAddress || null,
-      loan_category: app.loanCategory,
-      purpose_of_loan: app.purposeOfLoan || null,
-      lender: app.lender,
-      requested_amount: app.requestedAmount,
-      approval_amount: app.approvalAmount || null,
-      disbursed_amount: app.disbursedAmount || null,
-      interest_rate: app.interestRate || null,
-      tenure: app.tenure || null,
-      emi_amount: app.emiAmount || null,
-      cibil_score: app.cibilScore || null,
-      purchase_value: app.purchaseValue || null,
-      sale_deed_amount: app.saleDeedAmount || null,
-      status: app.status || "draft",
-      property_address: app.propertyAddress || null,
-      scheme_name: app.schemeName || null,
-      completion_status: app.completionStatus || null,
-      assigned_to: app.assignedTo,
-      documents: JSON.stringify(app.documents || []),
-      notes: app.notes || "",
-      application_number: app.applicationNumber || null,
-      submission_date: app.submissionDate || null,
-      disbursement_date: app.disbursementDate || null,
-      rejection_reason: app.rejectionReason || null,
-      has_co_applicant: app.hasCoApplicant || false,
-      co_applicants: JSON.stringify(app.coApplicants || []),
-    })
+    .insert(payload)
     .select()
     .single();
   if (error || !data) throw new Error(error?.message || "Failed to create application");
@@ -439,6 +458,7 @@ export async function updateApplication(id: string, updates: Partial<LoanApplica
   if (updates.status !== undefined) db.status = updates.status;
   if (updates.assignedTo !== undefined) db.assigned_to = updates.assignedTo;
   if (updates.documents !== undefined) db.documents = JSON.stringify(updates.documents);
+  if (updates.storedFiles !== undefined) db.stored_files = JSON.stringify(updates.storedFiles);
   if (updates.notes !== undefined) db.notes = updates.notes;
   if (updates.applicationNumber !== undefined) db.application_number = updates.applicationNumber || null;
   if (updates.submissionDate !== undefined) db.submission_date = updates.submissionDate || null;

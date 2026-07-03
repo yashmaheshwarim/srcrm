@@ -21,11 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, PhoneCall, FileText, Download, FilePlus, FileUp, UserPlus, X } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, PhoneCall, FileText, Download, FilePlus, FileUp, X } from "lucide-react";
 import { dataService } from "@/lib/data-service";
 import { BUSINESS_LOAN_DOCS, SALARIED_LOAN_DOCS, CO_APPLICANT_DOCS } from "@/lib/document-template";
 import { exportToCSV, exportToPDF, customersToExportRows } from "@/lib/export-utils";
 import { getLoanCategories, addLoanCategory } from "@/lib/loan-categories";
+import FileUpload from "@/components/FileUpload";
 import type { Customer, FollowUp } from "@/types";
 
 const employmentTypes = ["Salaried", "Self-Employed", "Business Owner", "Professional", "Other"];
@@ -170,32 +171,41 @@ export default function CustomersPage() {
   const handleSave = async () => {
     if (!form.fullName || !form.mobileNumber) return;
 
-    if (editingCustomer) {
-      await dataService.updateCustomer(editingCustomer.id, form as Partial<Customer>);
-    } else {
-      await dataService.addCustomer({
-        fullName: form.fullName || "",
-        mobileNumber: form.mobileNumber || "",
-        address: form.address || "",
-        panNumber: form.panNumber || "",
-        aadhaarNumber: form.aadhaarNumber || "",
-        employmentType: (form.employmentType as Customer["employmentType"]) || "Salaried",
-        monthlyIncome: form.monthlyIncome || "",
-        existingLiabilities: form.existingLiabilities || "",
-        notes: form.notes || "",
-        assignedTo: isAdmin ? (form.assignedTo || user?.id || "") : (user?.id || ""),
-        loanCategory: form.loanCategory || undefined,
-        hasCoApplicant: form.hasCoApplicant || false,
-        documents: form.documents || [],
-        propertyAddress: form.propertyAddress || undefined,
-        schemeName: form.schemeName || undefined,
-        dateAdded: form.dateAdded || undefined,
-      });
+    try {
+      // Filter out storedFiles if the DB column doesn't exist yet
+      const saveData = { ...form } as Partial<Customer>;
+      
+      if (editingCustomer) {
+        await dataService.updateCustomer(editingCustomer.id, saveData);
+      } else {
+        await dataService.addCustomer({
+          fullName: form.fullName || "",
+          mobileNumber: form.mobileNumber || "",
+          address: form.address || "",
+          panNumber: form.panNumber || "",
+          aadhaarNumber: form.aadhaarNumber || "",
+          employmentType: (form.employmentType as Customer["employmentType"]) || "Salaried",
+          monthlyIncome: form.monthlyIncome || "",
+          existingLiabilities: form.existingLiabilities || "",
+          notes: form.notes || "",
+          assignedTo: isAdmin ? (form.assignedTo || user?.id || "") : (user?.id || ""),
+          loanCategory: form.loanCategory || undefined,
+          hasCoApplicant: form.hasCoApplicant || false,
+          documents: form.documents || [],
+          storedFiles: form.storedFiles || [],
+          propertyAddress: form.propertyAddress || undefined,
+          schemeName: form.schemeName || undefined,
+          dateAdded: form.dateAdded || undefined,
+        });
+      }
+      setDialogOpen(false);
+      setEditingCustomer(null);
+      setForm({});
+      window.location.reload();
+    } catch (err) {
+      console.error("Save customer error:", err);
+      alert("Failed to save customer: " + (err instanceof Error ? err.message : "Unknown error"));
     }
-    setDialogOpen(false);
-    setEditingCustomer(null);
-    setForm({});
-    window.location.reload();
   };
 
   const convertToApplication = (customer: Customer) => {
@@ -630,6 +640,32 @@ export default function CustomersPage() {
                 </Select>
               </div>
             )}
+            {/* Uploaded Files Section */}
+            <div className="space-y-3 pt-2 border-t">
+              <h4 className="font-semibold text-sm">Uploaded Documents (S3 Storage)</h4>
+              <FileUpload
+                onUploadComplete={(files) => {
+                  const existing = form.storedFiles || [];
+                  setForm({ ...form, storedFiles: [...existing, ...files] });
+                }}
+                maxFiles={10}
+                maxSizeMB={50}
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff,.doc,.docx"
+              />
+              {form.storedFiles && form.storedFiles.length > 0 && (
+                <div className="space-y-1 mt-1">
+                  {form.storedFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <FileText className="h-3 w-3" />
+                      <a href={f.url} target="_blank" rel="noopener noreferrer" className="hover:underline truncate flex-1">
+                        {f.originalName}
+                      </a>
+                      <span className="text-[10px]">{f.compressed ? "(compressed)" : ""}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="space-y-2">
               <Label>Notes</Label>
               <Input value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />

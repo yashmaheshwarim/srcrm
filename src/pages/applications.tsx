@@ -22,12 +22,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, FileCheck, PhoneCall, Download, FilePlus, X, Filter, RefreshCw, ExternalLink } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, FileCheck, PhoneCall, Download, FilePlus, X, Filter, RefreshCw, ExternalLink, FileText } from "lucide-react";
 import { dataService } from "@/lib/data-service";
 import { generateDocumentChecklist, getDocumentProgress } from "@/lib/document-template";
 import { exportToCSV, exportToPDF, applicationsToExportRows } from "@/lib/export-utils";
 import { CustomerDetailDialog } from "@/components/customers/CustomerDetailDialog";
-import type { LoanApplication, DocumentItem, FollowUp, Customer, Lender } from "@/types";
+import FileUpload from "@/components/FileUpload";
+import type { LoanApplication, DocumentItem, FollowUp, Customer, Lender, StoredFileInfo } from "@/types";
 
 const appStatuses = ["draft", "documents_pending", "ready_to_submit", "submitted", "approved", "rejected", "disbursed"];
 const completionStatuses = ["pending", "completed"];
@@ -221,6 +222,7 @@ export default function ApplicationsPage() {
         hasCoApplicant,
         coApplicants: form.coApplicants || [],
         documents: appDocs,
+        storedFiles: form.storedFiles || [],
         notes: form.notes || "",
         propertyAddress: form.propertyAddress || undefined,
         schemeName: form.schemeName || undefined,
@@ -710,6 +712,32 @@ export default function ApplicationsPage() {
                 </Select>
               </div>
             )}
+            {/* Uploaded Files Section */}
+            <div className="space-y-3 pt-2 border-t">
+              <h4 className="font-semibold text-sm">Uploaded Documents (S3 Storage)</h4>
+              <FileUpload
+                onUploadComplete={(files) => {
+                  const existing = form.storedFiles || [];
+                  setForm({ ...form, storedFiles: [...existing, ...files] });
+                }}
+                maxFiles={10}
+                maxSizeMB={50}
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.tiff,.doc,.docx"
+              />
+              {form.storedFiles && form.storedFiles.length > 0 && (
+                <div className="space-y-1 mt-1">
+                  {form.storedFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <FileText className="h-3 w-3" />
+                      <a href={f.url} target="_blank" rel="noopener noreferrer" className="hover:underline truncate flex-1">
+                        {f.originalName}
+                      </a>
+                      <span className="text-[10px]">{f.compressed ? "(compressed)" : ""}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>

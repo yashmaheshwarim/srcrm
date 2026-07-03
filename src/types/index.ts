@@ -43,6 +43,15 @@ export interface Lead {
   transferStatus?: "pending" | "accepted" | "rejected";
 }
 
+export interface StoredFileInfo {
+  key: string;
+  url: string;
+  size: number;
+  contentType: string;
+  originalName: string;
+  compressed: boolean;
+}
+
 export interface DocumentItem {
   id: string;
   name: string;
@@ -75,6 +84,7 @@ export interface Customer {
   purchaseValue?: string;
   saleDeedAmount?: string;
   documents?: DocumentItem[];
+  storedFiles?: StoredFileInfo[];
   propertyAddress?: string;
   schemeName?: string;
   dateAdded?: string;
@@ -105,6 +115,7 @@ export interface LoanApplication {
   status: LoanApplicationStatus;
   assignedTo: string;
   documents: DocumentItem[];
+  storedFiles?: StoredFileInfo[];
   notes: string;
   createdAt: string;
   applicationNumber?: string;
